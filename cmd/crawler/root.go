@@ -6,13 +6,14 @@ import (
 	"github.com/spf13/cobra"
 	"net/http"
 	"os"
+	"strings"
 )
 
-var source, dir string
+var source, downloadsDir string
 
 func init() {
 	rootCmd.Flags().StringVarP(&source, "source", "s", "", "URL to scrap data from.")
-	rootCmd.Flags().StringVarP(&dir, "directory", "d", "downloads", "Directory to store downloaded src contents")
+	rootCmd.Flags().StringVarP(&downloadsDir, "directory", "d", "downloads", "Directory to store downloaded src contents")
 
 	_ = rootCmd.MarkFlagRequired("source")
 }
@@ -35,7 +36,8 @@ var rootCmd = &cobra.Command{
 			}
 		)
 
-		cl := NewCrawler(client)
+		cl := NewCrawler(client, downloadsDir)
+		source = strings.Trim(source, "/")
 		cl.Crawl(source)
 	},
 }

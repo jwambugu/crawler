@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"bytes"
 	"fmt"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
@@ -8,22 +9,25 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 )
+
+const baseDownloadsPath = "storage"
 
 type HttpClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
 type Crawler struct {
+	downloadsDir string
 	httpClient   HttpClient
 	visitedLinks map[string]struct{}
 }
 
 func (c *Crawler) PageDownloader(link string) (io.Reader, error) {
 	defer func() {
-		log.Printf("Downloading %s\n", link)
-		c.visitedLinks[link] = struct{}{}
+		log.Printf("Downloaded %s\n", link)
 	}()
 
 	req, err := http.NewRequest(http.MethodGet, link, nil)
@@ -37,33 +41,74 @@ func (c *Crawler) PageDownloader(link string) (io.Reader, error) {
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("crawl: got status %d", res.StatusCode)
+		return nil, fmt.Errorf("crawl: got status - %d on %s", res.StatusCode, link)
 	}
 
 	return res.Body, nil
 }
 
 func (c *Crawler) Crawl(link string) {
-	response, err := c.PageDownloader(link)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
 	uri, err := url.Parse(link)
 	if err != nil {
 		log.Fatalf("crawl: parse url - %v\n", err)
 	}
 
-	allLinks := GetLinks(uri, response)
+	filename := uri.Host + strings.ReplaceAll(uri.Path, "/", "_") + `.html`
+	filename = c.downloadsDir + `/` + filename
+
+	buffer := new(bytes.Buffer)
+
+	contents, err := os.ReadFile(filename)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Fatalf("crawl: read file - %v", err)
+			return
+		}
+
+		response, err := c.PageDownloader(uri.String())
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		contents, err = io.ReadAll(response)
+		if err != nil {
+			log.Fatalf("crawl: read response - %v", err)
+			return
+		}
+
+		f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatalf("crawl: create file - %w", err)
+			return
+		}
+
+		if _, err = f.Write(contents); err != nil {
+			log.Fatalf("crawl: write to file - %v", err)
+			return
+		}
+	}
+
+	buffer.Write(contents)
+	allLinks := GetLinks(uri, buffer)
+
 	for _, l := range allLinks {
 		if _, exists := c.visitedLinks[l]; !exists {
+			c.visitedLinks[link] = struct{}{}
 			c.Crawl(l)
 		}
 	}
 }
 
-func NewCrawler(cl HttpClient) *Crawler {
+func NewCrawler(cl HttpClient, dir string) *Crawler {
+	dir = baseDownloadsPath + `/` + dir
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err = os.MkdirAll(dir, 0750); err != nil {
+			log.Panicf("crawler: create downloads dir - %v", err)
+		}
+	}
+
 	return &Crawler{
+		downloadsDir: dir,
 		httpClient:   cl,
 		visitedLinks: make(map[string]struct{}),
 	}
