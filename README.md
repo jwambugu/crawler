@@ -46,3 +46,17 @@ To crawl a website, run
 ```
 crawler -s https://example.com -d downloads
 ```
+
+### Running tests and benchmarks
+
+Tests:
+
+```shell
+  go test -cover -race ./... -v
+```
+
+Benchmarks:
+
+```shell
+  go test -bench=.  ./...  
+```
