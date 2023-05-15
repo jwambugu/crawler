@@ -37,7 +37,7 @@ func (c *Crawler) PageDownloader(link string) (io.Reader, error) {
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return nil, nil
+		return nil, fmt.Errorf("crawl: got status %d", res.StatusCode)
 	}
 
 	return res.Body, nil
