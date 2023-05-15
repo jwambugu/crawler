@@ -16,7 +16,46 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
+func TestCrawler_CrawlWithoutConcurrency(t *testing.T) {
+	t.Parallel()
+
+	httpClient := crawler.NewMockHttpClient()
+
+	httpClient.MockRequest("http://localhost.com", func() (status int, body string) {
+		return http.StatusOK, `
+	<ul>
+		<a href="/">Home</a>
+		<a href="/advanced-features">Advance features</a>
+		<a href="https://google.com"> External </a>
+	</ul>`
+	})
+
+	httpClient.MockRequest("http://localhost.com/advanced-features", func() (status int, body string) {
+		return http.StatusOK, `
+		<ul>
+			<a href="/">Home</a>
+			<a href="/advanced-features">Advance features</a>
+			<a href="https://google.com"> External </a>
+		</ul>
+
+		<section>
+			<h2>Progress bar <a href="https://whatsapp.com"></a></h2>
+		</section>`
+	})
+
+	cl := crawler.NewCrawler(httpClient, "tests")
+
+	defer func() {
+		err := os.RemoveAll("storage/tests")
+		require.NoError(t, err)
+	}()
+
+	cl.CrawlWithoutConcurrency("http://localhost.com")
+}
+
 func TestCrawler_Crawl(t *testing.T) {
+	t.Parallel()
+
 	httpClient := crawler.NewMockHttpClient()
 
 	httpClient.MockRequest("http://localhost.com", func() (status int, body string) {

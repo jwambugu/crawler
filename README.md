@@ -60,3 +60,8 @@ Benchmarks:
 ```shell
   go test -bench=.  ./...  
 ```
+
+### Missing features
+
+- The crawler should not exit if a link returns a 404. It should attempt to go back to the previous link and skip the
+  missing link's URL.
