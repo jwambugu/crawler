@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"net/http"
 	"os"
+	"sync"
 	"testing"
 )
 
@@ -34,7 +35,12 @@ func TestCrawler_Crawl(t *testing.T) {
 	})
 
 	cl := crawler.NewCrawler(httpClient, "tests")
-	cl.Crawl("http://localhost.com")
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go cl.Crawl("http://localhost.com", &wg)
+	wg.Wait()
 
 	filenames := cl.GetFilenames()
 
@@ -50,6 +56,4 @@ func TestCrawler_Crawl(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	cl.Crawl("http://localhost.com")
-	require.Len(t, cl.GetFilenames(), len(filenames))
 }

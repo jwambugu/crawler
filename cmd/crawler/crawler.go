@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 )
 
 const baseDownloadsPath = "storage"
@@ -23,6 +24,8 @@ type Crawler struct {
 	downloadsDir string
 	filenames    map[string]struct{}
 	httpClient   HttpClient
+
+	mu           sync.Mutex
 	visitedLinks map[string]struct{}
 }
 
@@ -38,10 +41,6 @@ func (c *Crawler) GetFilenames() []string {
 }
 
 func (c *Crawler) PageDownloader(link string) (io.Reader, error) {
-	defer func() {
-		log.Printf("Downloaded %s\n", link)
-	}()
-
 	req, err := http.NewRequest(http.MethodGet, link, nil)
 	if err != nil {
 		return nil, fmt.Errorf("crawl: create request - %w", err)
@@ -59,7 +58,12 @@ func (c *Crawler) PageDownloader(link string) (io.Reader, error) {
 	return res.Body, nil
 }
 
-func (c *Crawler) Crawl(link string) {
+func (c *Crawler) Crawl(link string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	uri, err := url.Parse(link)
 	if err != nil {
 		fmt.Printf("crawl: parse url - %v\n", err)
@@ -106,9 +110,13 @@ func (c *Crawler) Crawl(link string) {
 
 	for _, l := range allLinks {
 		if _, exists := c.visitedLinks[l]; !exists {
-			c.visitedLinks[link] = struct{}{}
+			c.visitedLinks[l] = struct{}{}
 			c.filenames[filename] = struct{}{}
-			c.Crawl(l)
+
+			log.Printf("-- %s\n", l)
+
+			wg.Add(1)
+			go c.Crawl(l, wg)
 		}
 	}
 }
