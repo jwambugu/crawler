@@ -1,9 +1,10 @@
 package crawler
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/spf13/cobra"
-	"log"
+	"net/http"
 	"os"
 )
 
@@ -21,7 +22,21 @@ var rootCmd = &cobra.Command{
 	Short: "crawler is a minimalistic web crawler",
 	Long:  `A simple web crawl that crawls all relative links for the provided URL. It aims to be fast and flexible web crawler.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		log.Println(source, dir)
+
+		var (
+			transport = &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			}
+
+			client = &http.Client{
+				Transport: transport,
+			}
+		)
+
+		cl := NewCrawler(client)
+		cl.Crawl(source)
 	},
 }
 
