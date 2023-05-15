@@ -38,6 +38,13 @@ func TestCrawler_Crawl(t *testing.T) {
 
 	filenames := cl.GetFilenames()
 
+	defer func() {
+		for _, filename := range filenames {
+			err := os.Remove(filename)
+			require.NoError(t, err)
+		}
+	}()
+
 	for _, filename := range filenames {
 		_, err := os.Stat(filename)
 		require.NoError(t, err)

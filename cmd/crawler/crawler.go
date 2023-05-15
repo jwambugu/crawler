@@ -21,13 +21,20 @@ type HttpClient interface {
 
 type Crawler struct {
 	downloadsDir string
+	filenames    map[string]struct{}
 	httpClient   HttpClient
 	visitedLinks map[string]struct{}
-	filenames    []string
 }
 
 func (c *Crawler) GetFilenames() []string {
-	return c.filenames
+	files := make([]string, len(c.filenames))
+	var counter int
+	for s := range c.filenames {
+		files[counter] = s
+		counter++
+	}
+
+	return files
 }
 
 func (c *Crawler) PageDownloader(link string) (io.Reader, error) {
@@ -100,7 +107,7 @@ func (c *Crawler) Crawl(link string) {
 	for _, l := range allLinks {
 		if _, exists := c.visitedLinks[l]; !exists {
 			c.visitedLinks[link] = struct{}{}
-			c.filenames = append(c.filenames, filename)
+			c.filenames[filename] = struct{}{}
 			c.Crawl(l)
 		}
 	}
@@ -116,6 +123,7 @@ func NewCrawler(cl HttpClient, dir string) *Crawler {
 
 	return &Crawler{
 		downloadsDir: dir,
+		filenames:    make(map[string]struct{}),
 		httpClient:   cl,
 		visitedLinks: make(map[string]struct{}),
 	}
