@@ -22,14 +22,17 @@ type HttpClient interface {
 
 type Crawler struct {
 	downloadsDir string
-	filenames    map[string]struct{}
 	httpClient   HttpClient
 
 	mu           sync.Mutex
+	filenames    map[string]struct{}
 	visitedLinks map[string]struct{}
 }
 
 func (c *Crawler) GetFilenames() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	files := make([]string, len(c.filenames))
 	var counter int
 	for s := range c.filenames {
@@ -38,6 +41,20 @@ func (c *Crawler) GetFilenames() []string {
 	}
 
 	return files
+}
+
+func (c *Crawler) GetVisitedLinks() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	links := make([]string, len(c.visitedLinks))
+	var counter int
+	for s := range c.visitedLinks {
+		links[counter] = s
+		counter++
+	}
+
+	return links
 }
 
 func (c *Crawler) PageDownloader(link string) (io.Reader, error) {
@@ -97,20 +114,22 @@ func (c *Crawler) craw(uri *url.URL) (io.Reader, string, error) {
 func (c *Crawler) CrawlWithoutConcurrency(link string) {
 	uri, err := url.Parse(link)
 	if err != nil {
-		fmt.Printf("crawl: parse url - %v\n", err)
+		log.Printf("crawl: parse url - %v\n", err)
+		return
 	}
 
 	reader, filename, err := c.craw(uri)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
+
+	c.filenames[filename] = struct{}{}
 
 	allLinks := GetLinks(uri, reader)
 	for _, l := range allLinks {
 		if _, exists := c.visitedLinks[l]; !exists {
 			c.visitedLinks[l] = struct{}{}
-			c.filenames[filename] = struct{}{}
 
 			log.Printf("-- %s\n", l)
 			c.CrawlWithoutConcurrency(l)
@@ -126,20 +145,22 @@ func (c *Crawler) Crawl(link string, wg *sync.WaitGroup) {
 
 	uri, err := url.Parse(link)
 	if err != nil {
-		fmt.Printf("crawl: parse url - %v\n", err)
+		log.Printf("crawl: parse url - %v\n", err)
+		return
 	}
 
 	reader, filename, err := c.craw(uri)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
+
+	c.filenames[filename] = struct{}{}
 
 	allLinks := GetLinks(uri, reader)
 	for _, l := range allLinks {
 		if _, exists := c.visitedLinks[l]; !exists {
 			c.visitedLinks[l] = struct{}{}
-			c.filenames[filename] = struct{}{}
 
 			log.Printf("-- %s\n", l)
 
