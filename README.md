@@ -49,6 +49,9 @@ crawler -s https://example.com -d downloads
 
 ### Running tests and benchmarks
 
+The project by default uses [github actions](https://github.com/features/actions) to run tests and benchmarks. To run
+tests locally, please run the commands below.
+
 Tests:
 
 ```shell

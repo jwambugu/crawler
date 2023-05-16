@@ -2,22 +2,41 @@ package crawler_test
 
 import (
 	"github.com/jwambugu/crawler/cmd/crawler"
-	"github.com/stretchr/testify/require"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"sync"
 	"testing"
 )
+
+var testsDir = "storage/tests/"
 
 func TestMain(m *testing.M) {
 	log.SetOutput(io.Discard)
 	m.Run()
 }
 
+func cleanup() {
+	dirs, err := os.ReadDir(testsDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, dir := range dirs {
+		if err = os.RemoveAll(path.Join([]string{testsDir, dir.Name()}...)); err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
 func TestCrawler_CrawlWithoutConcurrency(t *testing.T) {
 	t.Parallel()
+
+	defer func() {
+		cleanup()
+	}()
 
 	httpClient := crawler.NewMockHttpClient()
 
@@ -26,6 +45,7 @@ func TestCrawler_CrawlWithoutConcurrency(t *testing.T) {
 	<ul>
 		<a href="/">Home</a>
 		<a href="/advanced-features">Advance features</a>
+		<a href="/advanced-feature-removed">Advance features</a>
 		<a href="https://google.com"> External </a>
 	</ul>`
 	})
@@ -43,19 +63,21 @@ func TestCrawler_CrawlWithoutConcurrency(t *testing.T) {
 		</section>`
 	})
 
+	httpClient.MockRequest("http://localhost.com/advanced-feature-removed", func() (status int, body string) {
+		return http.StatusNotFound, `<p>Not Found</p>`
+	})
+
 	cl := crawler.NewCrawler(httpClient, "tests")
-
-	defer func() {
-		err := os.RemoveAll("storage/tests")
-		require.NoError(t, err)
-	}()
-
 	cl.CrawlWithoutConcurrency("http://localhost.com")
 }
 
 func TestCrawler_Crawl(t *testing.T) {
 	t.Parallel()
 
+	defer func() {
+		cleanup()
+	}()
+
 	httpClient := crawler.NewMockHttpClient()
 
 	httpClient.MockRequest("http://localhost.com", func() (status int, body string) {
@@ -81,11 +103,6 @@ func TestCrawler_Crawl(t *testing.T) {
 	})
 
 	cl := crawler.NewCrawler(httpClient, "tests")
-
-	defer func() {
-		err := os.RemoveAll("storage/tests")
-		require.NoError(t, err)
-	}()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -96,6 +113,10 @@ func TestCrawler_Crawl(t *testing.T) {
 }
 
 func BenchmarkCrawler_Crawl(b *testing.B) {
+	defer func() {
+		cleanup()
+	}()
+
 	for i := 0; i < b.N; i++ {
 		httpClient := crawler.NewMockHttpClient()
 
@@ -132,6 +153,10 @@ func BenchmarkCrawler_Crawl(b *testing.B) {
 }
 
 func BenchmarkCrawler_CrawlWithoutConcurrency(b *testing.B) {
+	defer func() {
+		cleanup()
+	}()
+
 	for i := 0; i < b.N; i++ {
 		httpClient := crawler.NewMockHttpClient()
 
@@ -158,7 +183,6 @@ func BenchmarkCrawler_CrawlWithoutConcurrency(b *testing.B) {
 		})
 
 		cl := crawler.NewCrawler(httpClient, "tests")
-
 		cl.CrawlWithoutConcurrency("http://localhost.com")
 	}
 }
