@@ -93,3 +93,4 @@ ok  	github.com/jwambugu/crawler/cmd/crawler	3.680s
 
 - The crawler should not exit if a link returns a 404. It should attempt to go back to the previous link and skip the
   missing link's URL.
+- Keep track of the last crawled link and resume from it instead of starting afresh.  
