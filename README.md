@@ -64,6 +64,31 @@ Benchmarks:
   go test -bench=.  ./...  
 ```
 
+Benchmark Results on Apple M1 Pro:
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/jwambugu/crawler/cmd/crawler
+BenchmarkCrawler_Crawl-8                           25808             44546 ns/op
+BenchmarkCrawler_CrawlWithoutConcurrency-8         34762             34582 ns/op
+PASS
+ok      github.com/jwambugu/crawler/cmd/crawler 3.955s
+```
+
+Benchmark Results on Intel(R) Xeon(R) Platinum 8272CL CPU @ 2.60GHz:
+
+```text
+goos: linux
+goarch: amd64
+pkg: github.com/jwambugu/crawler/cmd/crawler
+cpu: Intel(R) Xeon(R) Platinum 8272CL CPU @ 2.60GHz
+BenchmarkCrawler_Crawl-2                     	   15939	     75629 ns/op
+BenchmarkCrawler_CrawlWithoutConcurrency-2   	   23270	     50507 ns/op
+PASS
+ok  	github.com/jwambugu/crawler/cmd/crawler	3.680s
+```
+
 ### Missing features
 
 - The crawler should not exit if a link returns a 404. It should attempt to go back to the previous link and skip the
